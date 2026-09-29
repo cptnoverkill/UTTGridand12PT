@@ -293,6 +293,23 @@
         <textarea id="comments" class="inputs" placeholder="Enter comments here..."></textarea>
     </div>
 
+    <div class="input-group">
+        <div>
+            <label for="gridCalIn">Calibration In Time:</label>
+            <input type="time" class="inputs" id="gridCalIn">
+            <label for="gridVelocity">Velocity:</label>
+            <input type="number" class="inputs" id="gridVelocity" step="0.0001" inputmode="decimal" placeholder="Velocity">
+            <label for="gridGain">Gain:</label>
+            <input type="number" class="inputs" id="gridGain" step="0.1" inputmode="decimal" placeholder="Gain">
+        </div>
+        <div>
+            <label for="gridCalOut">Calibration Out Time:</label>
+            <input type="time" class="inputs" id="gridCalOut">
+            <label for="gridRange">Range:</label>
+            <input type="number" class="inputs" id="gridRange" step="0.001" inputmode="decimal" placeholder="Range">
+        </div>
+    </div>
+
     <div class="button-group">
         <button onclick="saveData()">Save Data</button>
         <button onclick="loadData()">Load Data</button>
@@ -334,14 +351,34 @@
             <label for="ptUnits"><strong>UTT Reading Units:</strong></label>
             <select id="ptUnits" style="max-width:220px"><option value="mils">mils</option><option value="inches">inches</option></select>
         </div>
+        <div class="input-group" style="margin-top:18px;">
+            <div>
+                <label for="ptCalIn">Calibration In Time:</label>
+                <input type="time" id="ptCalIn">
+                <label for="ptVelocity">Velocity:</label>
+                <input type="number" id="ptVelocity" step="0.0001" inputmode="decimal" placeholder="Velocity">
+                <label for="ptGain">Gain:</label>
+                <input type="number" id="ptGain" step="0.1" inputmode="decimal" placeholder="Gain">
+            </div>
+            <div>
+                <label for="ptCalOut">Calibration Out Time:</label>
+                <input type="time" id="ptCalOut">
+                <label for="ptRange">Range:</label>
+                <input type="number" id="ptRange" step="0.001" inputmode="decimal" placeholder="Range">
+            </div>
+        </div>
         <div class="twelve-pt-grid" id="twelvePtGrid"></div>
         <div class="results">
             <p id="ptMin">Minimum Reading: --</p>
             <p id="ptAvg">Average Reading: --</p>
         </div>
         <div class="button-group">
+            <button onclick="save12PtData()">Save 12-PT</button>
             <button onclick="export12PtCSV()">Export 12-PT CSV</button>
             <button id="clear12Pt" onclick="clear12Pt()">Clear 12-PT</button>
+        </div>
+        <div class="saved-data-list" id="saved12PtList">
+            <!-- Saved 12-PT entries will appear here -->
         </div>
     </div>
               
@@ -355,7 +392,7 @@
             document.getElementById('twelvePtPanel').style.display = is12 ? 'block' : 'none';
             document.getElementById('gridModeBtn').classList.toggle('active-mode', !is12);
             document.getElementById('twelvePtModeBtn').classList.toggle('active-mode', is12);
-            if (is12) build12PtInputs();
+            if (is12) { build12PtInputs(); update12PtSavedList(); }
         }
 
         function build12PtInputs() {
@@ -383,18 +420,96 @@
             document.getElementById('ptAvg').textContent='Average Reading: '+(vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3):'--');
         }
 
+
+        function collect12PtSnapshot() {
+            const joint=document.getElementById('ptJoint').value.trim();
+            const axial=document.getElementById('ptAxial').value.trim();
+            const nwt=document.getElementById('ptNWT').value.trim();
+            const od=document.getElementById('ptOD').value;
+            const units=document.getElementById('ptUnits').value;
+            const calIn=document.getElementById('ptCalIn').value;
+            const calOut=document.getElementById('ptCalOut').value;
+            const velocity=document.getElementById('ptVelocity').value.trim();
+            const gain=document.getElementById('ptGain').value.trim();
+            const range=document.getElementById('ptRange').value.trim();
+            const readings=get12PtValues();
+            if (!joint || axial==='' || nwt==='' || !od) {
+                alert('Please enter Joint, Axial Distance, NWT, and OD before saving.');
+                return null;
+            }
+            if (!readings.some(r=>Number.isFinite(r.value))) {
+                alert('Please enter at least one UTT reading before saving.');
+                return null;
+            }
+            return { joint, axial, nwt, od, units, calIn, calOut, velocity, gain, range, readings: readings.map(r=>({clock:r.clock, raw:r.raw})), timestamp:new Date().toLocaleString() };
+        }
+
+        function save12PtData() {
+            const snapshot=collect12PtSnapshot();
+            if (!snapshot) return;
+            const saved=JSON.parse(localStorage.getItem('utt12PtComponents') || '[]');
+            saved.push(snapshot);
+            localStorage.setItem('utt12PtComponents', JSON.stringify(saved));
+            update12PtSavedList();
+            alert('12-PT UTT data saved successfully!');
+        }
+
+        function load12PtData(index) {
+            const saved=JSON.parse(localStorage.getItem('utt12PtComponents') || '[]');
+            const item=saved[index];
+            if (!item) { alert('Saved 12-PT data could not be found.'); return; }
+            showUTTMode('12pt');
+            document.getElementById('ptJoint').value=item.joint || '';
+            document.getElementById('ptAxial').value=item.axial ?? '';
+            document.getElementById('ptNWT').value=item.nwt ?? '';
+            document.getElementById('ptOD').value=item.od || '';
+            document.getElementById('ptUnits').value=item.units || 'mils';
+            document.getElementById('ptCalIn').value=item.calIn || '';
+            document.getElementById('ptCalOut').value=item.calOut || '';
+            document.getElementById('ptVelocity').value=item.velocity ?? '';
+            document.getElementById('ptGain').value=item.gain ?? '';
+            document.getElementById('ptRange').value=item.range ?? '';
+            build12PtInputs();
+            twelvePtClocks.forEach((clock,i)=>{
+                const savedReading=(item.readings || []).find(r=>r.clock===clock);
+                document.getElementById('ptRead'+i).value=savedReading ? (savedReading.raw ?? '') : '';
+            });
+            update12PtResults();
+            updateInputFieldColors();
+        }
+
+        function update12PtSavedList() {
+            const saved=JSON.parse(localStorage.getItem('utt12PtComponents') || '[]');
+            const list=document.getElementById('saved12PtList');
+            if (!list) return;
+            list.innerHTML='';
+            saved.forEach((item,index)=>{
+                const btn=document.createElement('button');
+                btn.className='saved-data-button';
+                btn.textContent=`${item.joint || 'Joint'} @ ${item.axial ?? ''} in - ${item.timestamp || ''}`;
+                btn.onclick=()=>load12PtData(index);
+                list.appendChild(btn);
+            });
+        }
+
         function export12PtCSV() {
             const joint=document.getElementById('ptJoint').value.trim();
             const axial=document.getElementById('ptAxial').value.trim();
             const nwt=document.getElementById('ptNWT').value.trim();
             const od=document.getElementById('ptOD').value;
             const units=document.getElementById('ptUnits').value;
+            const calIn=document.getElementById('ptCalIn').value;
+            const calOut=document.getElementById('ptCalOut').value;
+            const velocity=document.getElementById('ptVelocity').value.trim();
+            const gain=document.getElementById('ptGain').value.trim();
+            const range=document.getElementById('ptRange').value.trim();
             if (!joint || axial==='' || nwt==='' || !od) { alert('Please enter Joint, Axial Distance, NWT, and OD before exporting.'); return; }
             const readings=get12PtValues();
             if (!readings.some(r=>Number.isFinite(r.value))) { alert('Please enter at least one UTT reading.'); return; }
             const valid=readings.filter(r=>Number.isFinite(r.value)).map(r=>r.value);
             const lines=[
-                ['Joint',joint],['Axial Distance (inches)',axial],['NWT',nwt],['OD (inches)',od],['UTT Reading Units',units],[],
+                ['Joint',joint],['Axial Distance (inches)',axial],['NWT',nwt],['OD (inches)',od],['UTT Reading Units',units],
+                ['Calibration In Time',calIn],['Calibration Out Time',calOut],['Velocity',velocity],['Gain',gain],['Range',range],[],
                 ['Clock Position','UTT Reading ('+units+')']
             ];
             readings.forEach(r=>lines.push([r.clock,r.raw]));
@@ -404,9 +519,11 @@
 
         function clear12Pt() {
             if (!confirm('Clear the 12-PT UTT fields?')) return;
-            ['ptJoint','ptAxial','ptNWT'].forEach(id=>document.getElementById(id).value='');
+            ['ptJoint','ptAxial','ptNWT','ptVelocity','ptGain','ptRange'].forEach(id=>document.getElementById(id).value='');
             document.getElementById('ptOD').value='';
             document.getElementById('ptUnits').value='mils';
+            document.getElementById('ptCalIn').value='';
+            document.getElementById('ptCalOut').value='';
             get12PtValues().forEach((r,i)=>document.getElementById('ptRead'+i).value='');
             update12PtResults();
         }
@@ -461,6 +578,11 @@
                 circumferentialStart: circumferentialStart,
                 length: length,
                 wallThickness: parseFloat(document.getElementById('wallThickness').value),
+                calibrationIn: document.getElementById('gridCalIn').value,
+                calibrationOut: document.getElementById('gridCalOut').value,
+                velocity: document.getElementById('gridVelocity').value,
+                gain: document.getElementById('gridGain').value,
+                range: document.getElementById('gridRange').value,
                 data: {}
             };
 
@@ -549,6 +671,12 @@
                 alert('Please generate and fill in the table first.');
                 return;
             }
+            currentComponent.calibrationIn = document.getElementById('gridCalIn').value;
+            currentComponent.calibrationOut = document.getElementById('gridCalOut').value;
+            currentComponent.velocity = document.getElementById('gridVelocity').value;
+            currentComponent.gain = document.getElementById('gridGain').value;
+            currentComponent.range = document.getElementById('gridRange').value;
+            currentComponent.comments = document.getElementById('comments').value;
             currentComponent.timestamp = new Date().toLocaleString();
             let savedComponents = JSON.parse(localStorage.getItem('components') || '[]');
             savedComponents.push(currentComponent);
@@ -568,6 +696,12 @@
                 document.getElementById('axialStart').value = currentComponent.axialStart;
                 document.getElementById('circumferentialStart').value = currentComponent.circumferentialStart;
                 document.getElementById('length').value = currentComponent.length;
+                document.getElementById('comments').value = currentComponent.comments || '';
+                document.getElementById('gridCalIn').value = currentComponent.calibrationIn || '';
+                document.getElementById('gridCalOut').value = currentComponent.calibrationOut || '';
+                document.getElementById('gridVelocity').value = currentComponent.velocity || '';
+                document.getElementById('gridGain').value = currentComponent.gain || '';
+                document.getElementById('gridRange').value = currentComponent.range || '';
                
 
                 generateTable();  // This will recreate the input fields
@@ -619,6 +753,11 @@
                 document.getElementById('circumferentialStart').value = '';
                 document.getElementById('length').value = '';
                 document.getElementById('comments').value = '';
+                document.getElementById('gridCalIn').value = '';
+                document.getElementById('gridCalOut').value = '';
+                document.getElementById('gridVelocity').value = '';
+                document.getElementById('gridGain').value = '';
+                document.getElementById('gridRange').value = '';
                 document.getElementById('minRead').textContent = 'Minimum Reading: --';
                 document.getElementById('avgRead').textContent = 'Average Reading: --';
             }
@@ -659,6 +798,11 @@
                 }
             });
             copy.comments = document.getElementById('comments').value;
+            copy.calibrationIn = document.getElementById('gridCalIn').value;
+            copy.calibrationOut = document.getElementById('gridCalOut').value;
+            copy.velocity = document.getElementById('gridVelocity').value;
+            copy.gain = document.getElementById('gridGain').value;
+            copy.range = document.getElementById('gridRange').value;
             return copy;
         }
         function exportRawJSON() {
@@ -714,11 +858,17 @@
                 if (mode === 'recovery') row.push(flags.join('; '));
                 lines.push(row);
             }
+            lines.push([]);
             if (mode === 'recovery') {
-                lines.push([], ['Minimum Reading (in)', values.length ? Math.min(...values).toFixed(3) : 'N/A'],
+                lines.push(['Minimum Reading (in)', values.length ? Math.min(...values).toFixed(3) : 'N/A'],
                     ['Average Reading (in)', values.length ? (values.reduce((a,b)=>a+b,0)/values.length).toFixed(3) : 'N/A'],
                     ['WARNING', 'Recovery units are inferred, not verified. Check original UT records.']);
             }
+            lines.push(['Calibration In Time', c.calibrationIn || ''],
+                ['Calibration Out Time', c.calibrationOut || ''],
+                ['Velocity', c.velocity || ''],
+                ['Gain', c.gain || ''],
+                ['Range', c.range || '']);
             downloadRecoveryFile((c.name || 'component') + '_' + mode.toUpperCase() + '_' + recoveryStamp() + '.csv',
                 lines.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
         }
@@ -763,7 +913,12 @@
             const allValues = [].concat(...Object.values(currentComponent.data).map(row => Object.values(row).map(val => val / 1000))); // Convert to decimal
             const minRead = allValues.length ? Math.min(...allValues).toFixed(3) : 'N/A';
             const avgRead = allValues.length ? (allValues.reduce((sum, val) => sum + val, 0) / allValues.length).toFixed(3) : 'N/A';
-            csvContent.push('', `Minimum Reading: ${minRead}`, `Average Reading: ${avgRead}`);
+            csvContent.push('', `Minimum Reading: ${minRead}`, `Average Reading: ${avgRead}`, '',
+                `Calibration In Time: ${document.getElementById('gridCalIn').value}`,
+                `Calibration Out Time: ${document.getElementById('gridCalOut').value}`,
+                `Velocity: ${document.getElementById('gridVelocity').value}`,
+                `Gain: ${document.getElementById('gridGain').value}`,
+                `Range: ${document.getElementById('gridRange').value}`);
 
             const blob = new Blob([csvContent.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -786,6 +941,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             updateSavedList();  // Update the saved list when the page loads
+            update12PtSavedList();
             $('#pipeDiameter').select2();  // Initialize select2 on the select element
 
         });
