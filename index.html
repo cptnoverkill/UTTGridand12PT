@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Include jQuery and Select2 CSS/JS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<link rel="manifest" href="/manifest.json">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale="1.0">
+    <title>UTT Data Entry</title>
+    <style>
+        body {
+            font-family: Roboto, sans-serif;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        #tableContainer {
+            overflow-x: auto;  /* Allows horizontal scrolling */
+            background-color: #fff;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 600px;  /* Ensures the table is wide enough for sticky positioning to be noticeable */
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: center;
+            min-width: 50px;
+        }
+        th.position-column, td.position-column {
+            position: sticky;
+            left: 0;
+            background-color: white;  /* Ensures that the sticky column has a solid background */
+            z-index: 1;
+        }
+        th {
+            position: sticky;
+            top: 0;
+            background-color: #4CAF50;
+            color: white;
+            z-index: 2;  /* Ensures that the sticky header is above other content */
+        }
+        input[type="number"], input[type="text"], input[list], input[type="time"], select {
+            width: 100%;
+            color: #333;
+            background-color: #fff;
+            border: 1px solid #333;
+            padding: 5px;
+            box-sizing: border-box;
+
+
+        }
+        input[type="number"]:focus, input[type="text"]:focus, input[list]:focus, input[type="time"]:focus, select:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px #4CAF50;
+        }
+        input[type="number"], input[type="text"], input[list], input[type="time"].filled, select.filled {
+            background-color: #c8e6c9;  /* Light green background for filled inputs */
+        }
+
+        .inputs.filled {
+            background-color: #cecece;  /* Light green background for filled inputs */
+        }
+        button {
+            margin: 10px 5px;
+            padding: 10px 15px;
+            background-color: #224223;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 1rem;
+        }
+        button:hover {
+            background-color: #258b2a;
+        }
+        button#clearTable {
+            background-color: #f44336;
+        }
+        button#clearTable:hover {
+            background-color: #d32f2f;
+        }
+        button#clearAllButton {
+            background-color: #f44336;
+        }
+        button#clearAllButton:hover {
+            background-color: #d32f2f;
+        }
+        .input-group {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .input-group > div {
+            flex: 1 1 180px;
+            max-width: 220px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #333;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px #4CAF50;
+        }
+        .results, .saved-data-list {
+            margin-top: 20px;
+        }
+
+        .saved-data-button {
+            font-weight: 50;
+            font-size: small;
+            background-color: rgb(53, 56, 50);
+            color: #ffffff;
+            box-shadow: 0 0 2px #000000;
+        }
+
+        /* Hide spin buttons in input fields of type number */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .dark-mode {
+            background-color: #333;
+            color: #f0f0f0;
+        }
+
+        .dark-mode h1 {
+            background-color: #030303;
+            color: #fff;
+        }
+        .dark-mode #tableContainer {
+            background-color: #444;
+        }
+        .dark-mode th, .dark-mode body,
+        .dark-mode td {
+            border: 1px solid #777;
+            background-color: #030303;
+            color: #fff;
+        }
+
+
+        .dark-mode th {
+            background-color: #555;
+            color: #fff;
+        }
+        .dark-mode input,
+        .dark-mode input[type="number"],
+        .dark-mode input[type="text"],
+        .dark-mode input[list],
+        .dark-mode input[type="time"] 
+        .dark-mode select {
+            background-color: #555;
+            color: #fff;
+            border: 1px solid #777;
+        }
+        .dark-mode input.filled {
+            background-color: white;
+            color: black;
+        }
+        .dark-mode.inputs.filled {
+            background-color: white;
+            color: black;
+        }
+        .dark-mode button {
+            background-color: #242424;
+            color: #ffffff;
+            border: .5px solid #555;
+        }
+        .dark-mode button:hover {
+            background-color: #555;
+        }
+
+            datalist {
+            /*max-height: 300px; /* Set a maximum height for the datalist dropdown */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+        
+
+        .mode-selector { display:flex; gap:10px; margin:15px 0 20px; flex-wrap:wrap; }
+        .mode-selector button.active-mode { background-color:#258b2a; box-shadow:0 0 0 2px rgba(37,139,42,.25); }
+        #twelvePtPanel { display:none; background:#fff; padding:18px; border-radius:10px; margin-top:10px; }
+        .dark-mode #twelvePtPanel { background:#444; }
+        .twelve-pt-grid { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)); gap:12px; margin:18px 0; }
+        .twelve-pt-grid .clock-reading { background:#f7f7f7; border:1px solid #bbb; border-radius:8px; padding:10px; }
+        .dark-mode .twelve-pt-grid .clock-reading { background:#222; border-color:#777; }
+        .twelve-pt-grid label { display:block; font-weight:bold; margin-bottom:5px; }
+        @media (max-width:700px){ .twelve-pt-grid{grid-template-columns:repeat(2,minmax(120px,1fr));} }
+
+    </style>
+</head>
+<body>
+
+    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <h1 class="headerText">UTT Data</h1>
+    <div class="mode-selector">
+        <button id="gridModeBtn" class="active-mode" onclick="showUTTMode('grid')">Grid UTT</button>
+        <button id="twelvePtModeBtn" onclick="showUTTMode('12pt')">12-PT UTT</button>
+    </div>
+    <div id="gridUTTPanel">
+    
+    <div class="input-group">
+        <div>
+            <label for="componentName">Component Name:</label>
+            <input type="text" class="inputs" id="componentName" placeholder="JT-XX" required>
+            <label for="pipeDiameter" class="inputs">Pipe Diameter (inches):</label>
+        
+            <!-- Replace the datalist with a select element -->
+<select id="pipeDiameter" required style="width: 100%;">
+    <option value="" disabled selected>Choose diameter...</option>
+    <option value="1.050">1.050</option>
+    <option value="1.315">1.315</option>
+    <option value="1.660">1.660</option>
+    <option value="1.900">1.900</option>
+    <option value="2.375">2.375</option>
+    <option value="2.875">2.875</option>
+    <option value="3.500">3.500</option>
+    <option value="4.000">4.000</option>
+    <option value="4.500">4.500</option>
+    <option value="5.563">5.563</option>
+    <option value="6.625">6.625</option>
+    <option value="8.625">8.625</option>
+    <option value="10.750">10.750</option>
+    <option value="12.750">12.750</option>
+    <option value="14.000">14.000</option>
+    <option value="16.000">16.000</option>
+    <option value="18.000">18.000</option>
+    <option value="20.000">20.000</option>
+    <option value="22.000">22.000</option>
+    <option value="24.000">24.000</option>
+    <option value="26.000">26.000</option>
+    <option value="28.000">28.000</option>
+    <option value="30.000">30.000</option>
+    <option value="32.000">32.000</option>
+    <option value="34.000">34.000</option>
+    <option value="36.000">36.000</option>
+    <option value="38.000">38.000</option>
+    <option value="40.000">40.000</option>
+    <option value="42.000">42.000</option>
+    <option value="44.000">44.000</option>
+    <option value="46.000">46.000</option>
+    <option value="48.000">48.000</option>
+    <option value="52.000">52.000</option>
+    <option value="54.000">54.000</option>
+    <option value="56.000">56.000</option>
+    <option value="60.000">60.000</option>
+</select>
+          
+            <label for="wallThickness" >Nominal Wall Thickness (mils):</label>
+            <input type="number" class="inputs" id="wallThickness" min="100" required inputmode="numeric">
+        </div>
+        <div>
+            <label for="axialStart">Axial Start (inches):</label>
+            <input type="number" class="inputs" id="axialStart" min="0" step="0.1" required inputmode="decimal">
+            <label for="circumferentialStart">Circumferential Start (hh:mm):</label>
+            <input type="text" class="inputs" id="circumferentialStart" required>
+            <label for="length" >Length (inches):</label>
+            <input type="number" class="inputs" id="length" min="1" required inputmode="decimal">
+        </div>
+    </div>
+
+    <button onclick="initializeComponent()">Initialize Component</button>
+    <button onclick="generateTable()">Generate Table</button>
+
+    <div id="tableContainer"></div>
+
+    <div class="results">
+        <p id="minRead">Minimum Reading: --</p>
+        <p id="avgRead">Average Reading: --</p>
+    </div>
+
+    <div class="input-group">
+        <label for="comments">Comments:</label>
+        <textarea id="comments" class="inputs" placeholder="Enter comments here..."></textarea>
+    </div>
+
+    <div class="button-group">
+        <button onclick="saveData()">Save Data</button>
+        <button onclick="loadData()">Load Data</button>
+        <button onclick="exportCSV()">Export to CSV (Legacy)</button>
+        <button onclick="exportRawCSV()">Export Raw CSV</button>
+        <button onclick="exportRecoveryCSV()">Export Recovery CSV</button>
+        <button onclick="exportRawJSON()">Backup Current (JSON)</button>
+        <button onclick="exportAllSavedJSON()">Backup ALL Saved (JSON)</button>
+        <p style="font-size:13px;max-width:700px">Recovery: Back up ALL saved data before making changes. Raw CSV preserves entered numbers without dividing by 1000. Recovery CSV treats values below 10 as inches and values 10 or greater as mils; review its unit flags before use. Legacy CSV retains the original conversion.</p>
+        <button id="clearTable" onclick="clearTable()">Clear Table</button>
+        <button onclick="clearLocalStorage()" id="clearAllButton">Clear All Saved Data</button>
+    </div>
+
+    <div class="saved-data-list" id="savedDataList">
+        <!-- List of saved entries will appear here -->
+    </div>
+    </div>
+
+    <div id="twelvePtPanel">
+        <h2>12-PT UTT</h2>
+        <div class="input-group">
+            <div>
+                <label for="ptJoint">Joint:</label>
+                <input type="text" id="ptJoint" placeholder="JT-XX">
+                <label for="ptAxial">Axial Distance (inches):</label>
+                <input type="number" id="ptAxial" step="0.01" inputmode="decimal">
+            </div>
+            <div>
+                <label for="ptNWT">NWT:</label>
+                <input type="number" id="ptNWT" step="0.001" inputmode="decimal" placeholder="e.g. 0.375 or 375">
+                <label for="ptOD">OD (inches):</label>
+                <select id="ptOD">
+                    <option value="" disabled selected>Choose diameter...</option>
+                    <option>1.050</option><option>1.315</option><option>1.660</option><option>1.900</option><option>2.375</option><option>2.875</option><option>3.500</option><option>4.000</option><option>4.500</option><option>5.563</option><option>6.625</option><option>8.625</option><option>10.750</option><option>12.750</option><option>14.000</option><option>16.000</option><option>18.000</option><option>20.000</option><option>22.000</option><option>24.000</option><option>26.000</option><option>28.000</option><option>30.000</option><option>32.000</option><option>34.000</option><option>36.000</option><option>38.000</option><option>40.000</option><option>42.000</option><option>44.000</option><option>46.000</option><option>48.000</option><option>52.000</option><option>54.000</option><option>56.000</option><option>60.000</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <label for="ptUnits"><strong>UTT Reading Units:</strong></label>
+            <select id="ptUnits" style="max-width:220px"><option value="mils">mils</option><option value="inches">inches</option></select>
+        </div>
+        <div class="twelve-pt-grid" id="twelvePtGrid"></div>
+        <div class="results">
+            <p id="ptMin">Minimum Reading: --</p>
+            <p id="ptAvg">Average Reading: --</p>
+        </div>
+        <div class="button-group">
+            <button onclick="export12PtCSV()">Export 12-PT CSV</button>
+            <button id="clear12Pt" onclick="clear12Pt()">Clear 12-PT</button>
+        </div>
+    </div>
+              
+    <script>
+
+        const twelvePtClocks = ['12:00','1:00','2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00','11:00'];
+
+        function showUTTMode(mode) {
+            const is12 = mode === '12pt';
+            document.getElementById('gridUTTPanel').style.display = is12 ? 'none' : 'block';
+            document.getElementById('twelvePtPanel').style.display = is12 ? 'block' : 'none';
+            document.getElementById('gridModeBtn').classList.toggle('active-mode', !is12);
+            document.getElementById('twelvePtModeBtn').classList.toggle('active-mode', is12);
+            if (is12) build12PtInputs();
+        }
+
+        function build12PtInputs() {
+            const grid = document.getElementById('twelvePtGrid');
+            if (grid.children.length) return;
+            twelvePtClocks.forEach((clock, i) => {
+                const box = document.createElement('div');
+                box.className = 'clock-reading';
+                box.innerHTML = `<label for="ptRead${i}">${clock}</label><input type="number" id="ptRead${i}" step="0.001" min="0" inputmode="decimal" placeholder="Reading" oninput="update12PtResults()">`;
+                grid.appendChild(box);
+            });
+        }
+
+        function get12PtValues() {
+            return twelvePtClocks.map((clock,i) => {
+                const el=document.getElementById('ptRead'+i);
+                const raw=el ? el.value.trim() : '';
+                return {clock, raw, value: raw==='' ? null : Number(raw)};
+            });
+        }
+
+        function update12PtResults() {
+            const vals=get12PtValues().filter(x=>Number.isFinite(x.value)).map(x=>x.value);
+            document.getElementById('ptMin').textContent='Minimum Reading: '+(vals.length?Math.min(...vals):'--');
+            document.getElementById('ptAvg').textContent='Average Reading: '+(vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3):'--');
+        }
+
+        function export12PtCSV() {
+            const joint=document.getElementById('ptJoint').value.trim();
+            const axial=document.getElementById('ptAxial').value.trim();
+            const nwt=document.getElementById('ptNWT').value.trim();
+            const od=document.getElementById('ptOD').value;
+            const units=document.getElementById('ptUnits').value;
+            if (!joint || axial==='' || nwt==='' || !od) { alert('Please enter Joint, Axial Distance, NWT, and OD before exporting.'); return; }
+            const readings=get12PtValues();
+            if (!readings.some(r=>Number.isFinite(r.value))) { alert('Please enter at least one UTT reading.'); return; }
+            const valid=readings.filter(r=>Number.isFinite(r.value)).map(r=>r.value);
+            const lines=[
+                ['Joint',joint],['Axial Distance (inches)',axial],['NWT',nwt],['OD (inches)',od],['UTT Reading Units',units],[],
+                ['Clock Position','UTT Reading ('+units+')']
+            ];
+            readings.forEach(r=>lines.push([r.clock,r.raw]));
+            lines.push([],['Minimum Reading',valid.length?Math.min(...valid):''],['Average Reading',valid.length?(valid.reduce((a,b)=>a+b,0)/valid.length).toFixed(3):'']);
+            downloadRecoveryFile((joint||'Joint')+'_12PT_UTT_'+recoveryStamp()+'.csv', lines.map(row=>row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+        }
+
+        function clear12Pt() {
+            if (!confirm('Clear the 12-PT UTT fields?')) return;
+            ['ptJoint','ptAxial','ptNWT'].forEach(id=>document.getElementById(id).value='');
+            document.getElementById('ptOD').value='';
+            document.getElementById('ptUnits').value='mils';
+            get12PtValues().forEach((r,i)=>document.getElementById('ptRead'+i).value='');
+            update12PtResults();
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark-mode');
+            updateInputFieldColors();
+        }
+
+        function updateInputFieldColors() {
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                const isDarkMode = document.documentElement.classList.contains('dark-mode');
+                if (input.value !== "") {
+                    input.style.backgroundColor = isDarkMode ? '#fff' : '#c8e6c9';
+                    input.style.color = isDarkMode ? '#000' : '#222';
+                } else {
+                    input.style.backgroundColor = isDarkMode ? '#333' : '#fff';
+                    input.style.color = isDarkMode ? '#fff' : '#333';
+                }
+            });
+        }
+
+        let currentComponent = null;
+
+        function generateLabel(index) {
+            let label = '';
+            while (index >= 0) {
+                let remainder = index % 26;
+                label = String.fromCharCode(65 + remainder) + label;
+                index = Math.floor(index / 26) - 1;
+            }
+            return label;
+        }
+
+        function initializeComponent() {
+            const componentName = document.getElementById('componentName').value;
+            const pipeDiameter = parseFloat(document.getElementById('pipeDiameter').value);
+            const axialStart = parseFloat(document.getElementById('axialStart').value);
+            const circumferentialStart = document.getElementById('circumferentialStart').value;
+            const length = parseInt(document.getElementById('length').value);
+
+            if (!componentName || isNaN(pipeDiameter) || isNaN(axialStart) || !circumferentialStart || isNaN(length)) {
+                alert('Please fill in all fields with valid values.');
+                return;
+            }
+
+            currentComponent = {
+                name: componentName,
+                pipeDiameter: pipeDiameter,
+                axialStart: axialStart,
+                circumferentialStart: circumferentialStart,
+                length: length,
+                wallThickness: parseFloat(document.getElementById('wallThickness').value),
+                data: {}
+            };
+
+            alert('Component initialized. Now you can generate the table.');
+        }
+
+        function generateTable() {
+            if (!currentComponent) {
+                alert('Please initialize the component first.');
+                return;
+            }
+
+            const numRows = Math.ceil(Math.PI * currentComponent.pipeDiameter);
+
+            let table = '<table><tr><th class="position-column">Position</th>';
+            for (let i = 1; i <= currentComponent.length; i++) {
+                table += `<th>${i}</th>`;
+            }
+            table += '</tr>';
+
+            for (let i = 0; i < numRows; i++) {
+                let rowLabel = generateLabel(i);
+                table += `<tr><td class="position-column">${rowLabel}</td>`;
+                for (let j = 1; j <= currentComponent.length; j++) {
+                    table += `<td><input type='number' step='1' min='0' required inputmode='numeric' placeholder='-' data-label='${rowLabel}' data-number='${j}' onchange='updateData("${rowLabel}", ${j}, this.value)'></td>`;
+                }
+                table += '</tr>';
+            }
+            table += '</table>';
+
+            document.getElementById('tableContainer').innerHTML = table;
+            updateInputFieldColors();
+        }
+
+        function updateData(label, number, value) {
+            const rowData = currentComponent.data[label] || {};
+            const inputValue = parseFloat(value);
+
+            if (value === "") {
+                delete rowData[number];
+            } else {
+                rowData[number] = inputValue;
+                const nominalThickness = currentComponent.wallThickness;
+                if (Math.abs(inputValue - nominalThickness) > 0.2 * nominalThickness) {
+                    alert(`Warning: Measurement at ${label}${number} is outside the nominal wall thickness range by more than 20%. Nominal: ${nominalThickness}, Measured: ${inputValue}`);
+                }
+            }
+
+            currentComponent.data[label] = rowData;  // Update the data store
+
+            // Update the input field's background color
+            const inputField = document.querySelector(`input[data-label='${label}'][data-number='${number}']`);
+            if (inputField) {
+                const isDarkMode = document.documentElement.classList.contains('dark-mode');
+                
+                inputField.classList.toggle('filled', value !== "");
+                if (value !== "") {
+                    inputField.style.backgroundColor = isDarkMode ? '#fff' : '#c8e6c9'; // Light gray for dark mode, light green for light mode
+                    inputField.style.color = isDarkMode ? '#000' : '#222'; // Black text for dark mode, dark grey for light mode
+                } else {
+                    inputField.style.backgroundColor = isDarkMode ? '#333' : '#fff'; // Dark gray for dark mode, white for light mode
+                    inputField.style.color = isDarkMode ? '#fff' : '#333'; // White text for dark mode, dark text for light mode
+                }
+            }
+
+            updateResults();
+        }
+
+        function updateResults() {
+            let allValues = [];
+            Object.keys(currentComponent.data).forEach(label => {
+                Object.values(currentComponent.data[label]).forEach(value => {
+                    if (value !== undefined) {
+                        allValues.push(value);
+                    }
+                });
+            });
+            const minRead = allValues.length ? Math.min(...allValues) : 'N/A';
+            const avgRead = allValues.length ? (allValues.reduce((sum, val) => sum + val, 0) / allValues.length).toFixed(0) : 'N/A';
+            document.getElementById('minRead').textContent = `Minimum Reading: ${minRead}`;
+            document.getElementById('avgRead').textContent = `Average Reading: ${avgRead}`;
+        }
+
+        function saveData() {
+            if (!currentComponent || Object.keys(currentComponent.data).length === 0) {
+                alert('Please generate and fill in the table first.');
+                return;
+            }
+            currentComponent.timestamp = new Date().toLocaleString();
+            let savedComponents = JSON.parse(localStorage.getItem('components') || '[]');
+            savedComponents.push(currentComponent);
+            localStorage.setItem('components', JSON.stringify(savedComponents));
+            alert('Data saved successfully!');
+            updateSavedList();
+        }
+
+        function loadData(index) {
+            const savedComponents = JSON.parse(localStorage.getItem('components') || '[]');
+            currentComponent = savedComponents[index];
+            if (currentComponent) {
+                document.getElementById('componentName').value = currentComponent.name;
+                document.getElementById('pipeDiameter').value = currentComponent.pipeDiameter;
+                $('#pipeDiameter').trigger('change'); // Trigger the change event to update select2 UI
+                document.getElementById('wallThickness').value = currentComponent.wallThickness;
+                document.getElementById('axialStart').value = currentComponent.axialStart;
+                document.getElementById('circumferentialStart').value = currentComponent.circumferentialStart;
+                document.getElementById('length').value = currentComponent.length;
+               
+
+                generateTable();  // This will recreate the input fields
+
+                // Populate the table with data after a short delay
+                setTimeout(() => {
+                    for (const label in currentComponent.data) {
+                        for (const number in currentComponent.data[label]) {
+                            const input = document.querySelector(`input[data-label='${label}'][data-number='${number}']`);
+                            if (input) {
+                                input.value = currentComponent.data[label][number];  // Load the integer value
+                                input.classList.add('filled');  // Add filled class for loaded values
+                                input.style.backgroundColor = document.documentElement.classList.contains('dark-mode') ? '#fff' : '#c8e6c9';
+                                input.style.color = document.documentElement.classList.contains('dark-mode') ? '#000' : '#222';
+                                input.classList.add('filled');  // Add filled class for loaded values
+                            }
+                        }
+                    }
+                    alert('Data loaded successfully!');
+                }, 100); // Adjust the delay time as needed
+                updateResults();
+            } else {
+                alert('No saved data found for this component.');
+            }
+        }
+
+        function updateSavedList() {
+            const savedComponents = JSON.parse(localStorage.getItem('components') || '[]');
+            const list = document.getElementById('savedDataList');
+            list.innerHTML = '';
+            savedComponents.forEach((component, index) => {
+                const entryButton = document.createElement('button');
+                entryButton.textContent = `${component.name} - ${component.timestamp}`;
+                entryButton.classList.add('saved-data-button'); // Add a class to the button
+                entryButton.onclick = () => loadData(index);
+                list.appendChild(entryButton);
+            });
+        }
+
+        function clearTable() {
+            if (confirm("Are you sure you want to clear the table? All unsaved data will be lost.")) {
+                currentComponent = null;
+                document.getElementById('tableContainer').innerHTML = '';
+                document.getElementById('componentName').value = '';
+                document.getElementById('pipeDiameter').value = '';
+                $('#pipeDiameter').trigger('change');  // Trigger the change event to update select2 UI
+                document.getElementById('wallThickness').value = '';
+                document.getElementById('axialStart').value = '';
+                document.getElementById('circumferentialStart').value = '';
+                document.getElementById('length').value = '';
+                document.getElementById('comments').value = '';
+                document.getElementById('minRead').textContent = 'Minimum Reading: --';
+                document.getElementById('avgRead').textContent = 'Average Reading: --';
+            }
+        }
+
+
+        // Recovery utilities: NEVER modify currentComponent or the stored components.
+        function csvEscape(value) {
+            const s = String(value == null ? '' : value);
+            return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+        function downloadRecoveryFile(filename, content, mime) {
+            const blob = new Blob([content], {type: mime});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename.replace(/[^\w.-]/g, '_');
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+        function recoveryStamp() {
+            return new Date().toISOString().replace(/[:.]/g, '-');
+        }
+        function collectCurrentSnapshot() {
+            if (!currentComponent) { alert('Load or initialize a component first.'); return null; }
+            // Snapshot visible fields, including the active input which may not have blurred.
+            const copy = JSON.parse(JSON.stringify(currentComponent));
+            copy.data = copy.data || {};
+            document.querySelectorAll('#tableContainer input[data-label][data-number]').forEach(input => {
+                const label = input.dataset.label, num = input.dataset.number;
+                if (!copy.data[label]) copy.data[label] = {};
+                if (input.value.trim() === '') delete copy.data[label][num];
+                else {
+                    const n = Number(input.value);
+                    if (Number.isFinite(n)) copy.data[label][num] = n;
+                }
+            });
+            copy.comments = document.getElementById('comments').value;
+            return copy;
+        }
+        function exportRawJSON() {
+            const snapshot = collectCurrentSnapshot();
+            if (!snapshot) return;
+            downloadRecoveryFile((snapshot.name || 'component') + '_RAW_BACKUP_' + recoveryStamp() + '.json',
+                JSON.stringify({format:'UTT raw backup v1', exportedAt:new Date().toISOString(), component:snapshot}, null, 2),
+                'application/json;charset=utf-8');
+        }
+        function exportAllSavedJSON() {
+            const raw = localStorage.getItem('components');
+            if (!raw) { alert('No saved components found on this browser.'); return; }
+            // Preserve the original stored JSON as-is, without unit conversion.
+            downloadRecoveryFile('UTT_ALL_SAVED_RAW_' + recoveryStamp() + '.json',
+                JSON.stringify({format:'UTT all saved backup v1', exportedAt:new Date().toISOString(),
+                    originalLocalStorageJSON:raw, components:JSON.parse(raw)}, null, 2),
+                'application/json;charset=utf-8');
+        }
+        function buildRecoveryCSV(mode) {
+            const c = collectCurrentSnapshot();
+            if (!c) return;
+            const lines = [
+                ['Component Name', c.name], ['Pipe Diameter (inches)', c.pipeDiameter],
+                ['Axial Start (inches)', c.axialStart],
+                ['Circumferential Start', c.circumferentialStart],
+                ['Nominal Wall Thickness (mils)', c.wallThickness],
+                ['Comments', c.comments || ''],
+                ['Export Mode', mode === 'raw' ? 'RAW ENTERED VALUES (NO CONVERSION)' : 'RECOVERY - REVIEW UNIT FLAGS'],
+                []
+            ];
+            const header = ['Position'];
+            for (let j=1; j<=c.length; j++) header.push(j);
+            if (mode === 'recovery') header.push('Review / inferred units');
+            lines.push(header);
+            const values=[];
+            for (let i=0; i<Math.ceil(Math.PI*c.pipeDiameter); i++) {
+                const label=generateLabel(i), row=[label], flags=[];
+                for (let j=1; j<=c.length; j++) {
+                    const v=c.data[label] && c.data[label][j];
+                    if (v === undefined || v === null || v === '') { row.push(''); continue; }
+                    const n=Number(v);
+                    if (!Number.isFinite(n)) { row.push(String(v)); flags.push(j+': INVALID'); continue; }
+                    if (mode === 'raw') row.push(n);
+                    else {
+                        // Heuristic only; does not overwrite source readings.
+                        const unit = n >= 10 ? 'mils' : 'inches';
+                        const inches = unit === 'mils' ? n/1000 : n;
+                        row.push(inches.toFixed(3));
+                        flags.push(j + ': ' + unit + (n === 0 ? ' (VERIFY ZERO)' : ''));
+                        values.push(inches);
+                    }
+                }
+                if (mode === 'recovery') row.push(flags.join('; '));
+                lines.push(row);
+            }
+            if (mode === 'recovery') {
+                lines.push([], ['Minimum Reading (in)', values.length ? Math.min(...values).toFixed(3) : 'N/A'],
+                    ['Average Reading (in)', values.length ? (values.reduce((a,b)=>a+b,0)/values.length).toFixed(3) : 'N/A'],
+                    ['WARNING', 'Recovery units are inferred, not verified. Check original UT records.']);
+            }
+            downloadRecoveryFile((c.name || 'component') + '_' + mode.toUpperCase() + '_' + recoveryStamp() + '.csv',
+                lines.map(row => row.map(csvEscape).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+        }
+        function exportRawCSV() { buildRecoveryCSV('raw'); }
+        function exportRecoveryCSV() { buildRecoveryCSV('recovery'); }
+
+        function exportCSV() {
+            if (!currentComponent || Object.keys(currentComponent.data).length === 0) {
+                alert('Please generate and fill in the table before exporting.');
+                return;
+            }
+            const comments = document.getElementById('comments').value;
+            let csvContent = [
+                `Component Name: ${currentComponent.name}`,
+                `Pipe Diameter: ${currentComponent.pipeDiameter} inches`,
+                `Axial Start: ${currentComponent.axialStart} inches`,
+                `Circumferential Start: ${currentComponent.circumferentialStart}`,
+                `Nominal Wall Thickness: ${currentComponent.wallThickness} mils`,
+                `Comments: ${comments}`,
+                ''
+            ];
+
+            // Prepare header with position numbers
+            let header = ['Position'];
+            for (let i = 1; i <= currentComponent.length; i++) {
+                header.push(i);
+            }
+            csvContent.push(header.join(','));
+
+            // Iterate over each row label and populate its respective data
+            for (let i = 0; i < Math.ceil(Math.PI * currentComponent.pipeDiameter); i++) {
+                let rowLabel = generateLabel(i);
+                let rowData = [rowLabel];
+                for (let j = 1; j <= currentComponent.length; j++) {
+                    // This ensures empty strings are placed where no data exists
+                    rowData.push(currentComponent.data[rowLabel] && currentComponent.data[rowLabel][j] ? (currentComponent.data[rowLabel][j] / 1000).toFixed(3) : '');
+                }
+                csvContent.push(rowData.join(','));
+            }
+
+            // Calculate minimum and average readings
+            const allValues = [].concat(...Object.values(currentComponent.data).map(row => Object.values(row).map(val => val / 1000))); // Convert to decimal
+            const minRead = allValues.length ? Math.min(...allValues).toFixed(3) : 'N/A';
+            const avgRead = allValues.length ? (allValues.reduce((sum, val) => sum + val, 0) / allValues.length).toFixed(3) : 'N/A';
+            csvContent.push('', `Minimum Reading: ${minRead}`, `Average Reading: ${avgRead}`);
+
+            const blob = new Blob([csvContent.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            const timestamp = new Date().toISOString().replace(/[:.-]/g, '_');
+            link.setAttribute('download', `${currentComponent.name}_thickness_data_${timestamp}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function clearLocalStorage() {
+            if (confirm("Are you sure you want to clear all saved data? This action cannot be undone.")) {
+                localStorage.removeItem('components');  // Assuming 'components' is the key where data is stored
+                updateSavedList();  // Update the list display if it's being used
+                alert('All saved data has been cleared.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSavedList();  // Update the saved list when the page loads
+            $('#pipeDiameter').select2();  // Initialize select2 on the select element
+
+        });
+
+        function sendEmail() {
+            const templateParams = {
+                component_name: document.getElementById('componentName').value,
+                pipe_diameter: document.getElementById('pipeDiameter').value,
+                wall_thickness: document.getElementById('wallThickness').value,
+                axial_start: document.getElementById('axialStart').value,
+                circumferential_start: document.getElementById('circumferentialStart').value,
+                length: document.getElementById('length').value,
+                comments: document.getElementById('comments').value,
+                table_data: getTableData()  // Function to collect data from the table
+            };
+            console.log(templateParams)
+            emailjs.send('service_b1ttqur', 'template_2uixjpd', templateParams)
+                .then(function(response) {
+                    alert('SUCCESS!', response.status, response.text);
+                }, function(error) {
+                    alert('FAILED...', error);
+                });
+        }
+
+        function getTableData() {
+            let tableData = [];
+            const rows = document.querySelectorAll('#tableContainer table tr');
+            rows.forEach(row => {
+                let rowData = [];
+                row.querySelectorAll('td input').forEach(input => {
+                    rowData.push(input.value);
+                });
+                tableData.push(rowData.join(', '));
+            });
+            return tableData.join('\n');
+        }
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('Service Worker registered with scope:', registration.scope);
+          })
+          .catch(error => {
+            console.log('Service Worker registration failed:', error);
+          });
+        }
+
+    </script>
+
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init("cokerdustin@gmail.com"); // Replace with your EmailJS user ID
+       })();
+    </script>
+
+    <script>
+    $(document).ready(function() {
+        $('#pipeDiameter').select2({
+            placeholder: "Choose diameter...",
+            allowClear: true
+        });
+    });
+</script>
+
+
+</body>
+</html>
